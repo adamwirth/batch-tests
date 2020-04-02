@@ -1,0 +1,5 @@
+parser = argparse.ArgumentParser(description='Test batched testing approaches.')
+parser.add_argument('tests', default=100, type=int, nargs='?')
+parser.add_argument('positives', default=19, type=int, nargs='?')
+parser.add_argument('batch', default=5, type=int, nargs='?')
+parser.add_argument('runs', default=1000, type=int, nargs='?')

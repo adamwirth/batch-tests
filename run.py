@@ -1,15 +1,9 @@
 from math import ceil
 import random
-import argparse
 
 from matplotlib import pyplot as plt
-import numpy as numpy
-
-parser = argparse.ArgumentParser(description='Test batched testing approaches.')
-parser.add_argument('tests', default=100, type=int, nargs='?')
-parser.add_argument('positives', default=19, type=int, nargs='?')
-parser.add_argument('batch', default=5, type=int, nargs='?')
-parser.add_argument('runs', default=1000, type=int, nargs='?')
+import numpy
+import parser from tools.parser
 
 args = vars(parser.parse_args())
 tests = args['tests']
@@ -108,7 +102,7 @@ def compute(batch):
 
 if __name__ == '__main__':
     print('test_shortage.py running')
-    for b in range(batch - 4, batch + 15):
+    for b in range(batch - 3, batch + 3):
         plot(plt, b, **compute(b))
     plt.legend()
     plt.suptitle(str(args))
