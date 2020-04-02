@@ -3,30 +3,26 @@ import random
 
 from matplotlib import pyplot as plt
 import numpy
-import parser from tools.parser
 
-args = vars(parser.parse_args())
-tests = args['tests']
-positives = args['positives']
-batch = args['batch']
-runs = args['runs']
+from tools.parser import args, tests, positives, batch, runs
 
-assert batch >= 0 and tests > 0 and positives > 0, 'what are you doing? stop it!'
-assert batch <= tests, 'batch > tests, oof'
-assert positives <= tests, 'positives > tests, big oof'
+# TODO CSV output for excel
 
-def _chunks(lst, n):
-    """Yield successive n-sized chunks from lst."""
-    for i in range(0, len(lst), n):
-        yield lst[i:i + n]
 
-def chunks(lst, n):
-    return list(_chunks(lst, n))
+def chunks(input, n):
+    """Return a list of lists from input, each of <n> length."""
+    def _chunks(lst, n):
+        """Yield successive n-sized chunks from lst."""
+        for i in range(0, len(lst), n):
+            yield lst[i:i + n]
+            
+    return list(_chunks(input, n))
 
-def hasTrue(lst):
-    return True if True in lst else False
 
+# TODO what are better performance choices for here?
 def countPartitions(partition):
+    hasTrue = lambda lst: True if True in lst else False
+
     i = 0
     for p in partition:
         if hasTrue(p):
@@ -36,8 +32,9 @@ def countPartitions(partition):
 truncate = lambda v: ceil(v * 1000) / 1000
 
 def plot(graph, batches, **kwargs):
-    print(kwargs, kwargs.values())
-    graph.plot(list(kwargs.keys()), list(kwargs.values()), label='Batches ' + str(batches))
+    print('plot', kwargs, kwargs.values())
+    label = 'Batches of size ' + str(batches)
+    graph.plot(list(kwargs.keys()), list(kwargs.values()), label=label)
     return graph
 
 def compute(batch):
@@ -45,6 +42,7 @@ def compute(batch):
 
     negatives = tests - positives
 
+    # TODO convert print statements to logger format
     print('tests:\t\t%s' % tests)
     print('positives:\t%s' % positives)
     perc = 100 / (tests / positives)
@@ -103,7 +101,8 @@ def compute(batch):
 if __name__ == '__main__':
     print('test_shortage.py running')
     for b in range(batch - 3, batch + 3):
-        plot(plt, b, **compute(b))
+        if b > 0:
+            plot(plt, b, **compute(b))
     plt.legend()
     plt.suptitle(str(args))
     plt.show()
