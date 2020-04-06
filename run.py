@@ -1,12 +1,16 @@
 from math import ceil
 import random
 
-from matplotlib import pyplot as plt
-import numpy
+from tools.parser import \
+    args, \
+    test_executions, \
+    positives, \
+    batch, \
+    runs, \
+    run_type
 
-from tools.parser import args, tests, positives, batch, runs
-
-# TODO CSV output for excel
+CSV_FILENAME = 'batch_tests.csv'
+BATCH_RANGE = 6
 
 
 def chunks(input, n):
@@ -31,26 +35,26 @@ def countPartitions(partition):
 
 truncate = lambda v: ceil(v * 1000) / 1000
 
-def plot(graph, batches, **kwargs):
-    print('plot', kwargs, kwargs.values())
-    label = 'Batches of size ' + str(batches)
+def plot(graph, **kwargs):
+    print('plot', kwargs)
+    label = 'Batches of size ' + str(kwargs.get('batch_size'))
     graph.plot(list(kwargs.keys()), list(kwargs.values()), label=label)
     return graph
 
 def compute(batch):
     random.seed()
 
-    negatives = tests - positives
+    negatives = test_executions - positives
 
     # TODO convert print statements to logger format
-    print('tests:\t\t%s' % tests)
+    print('test_executions/tests:\t\t%s' % test_executions)
     print('positives:\t%s' % positives)
-    perc = 100 / (tests / positives)
+    perc = 100 / (test_executions / positives)
     perc_rounded = truncate(perc)
     print('%' + ' positive:\t%s' % perc + '%')
     print('batch:\t\t%s' % batch)
 
-    top_level = ceil(tests / batch)
+    top_level = ceil(test_executions / batch)
     print('top_level:\t%s' % top_level)
 
     print('-----')
@@ -81,28 +85,92 @@ def compute(batch):
         return count
 
     print('Running %s scenarios...' % runs)
-    total = 0
-    for i in range(runs):
-        total += monteCarlo() * batch
 
-    average_run = total / runs
+    def monteCarloes():
+        for i in range(runs):
+            yield monteCarlo() * batch
+
+    all_runs = list(monteCarloes())
+    
+    def summation(li):
+        sum = 0
+        for v in li:
+            sum += v
+        return sum
+
+    total_tests_used = summation(all_runs)
+    print('total_tests_used:\t', total_tests_used)
+    average_run = total_tests_used / runs
     print('average_run:\t%s' % average_run)
     average_case = top_level + average_run
     print('average_case:\t%s' % average_case)
     assert average_case <= worst_case and average_case >= best_case, 'this should be impossible'
-    diff = truncate(tests - average_case)
+    diff = truncate(test_executions - average_case)
     if diff > 0:
         print('this setup would SAVE ~%s extra tests' % diff)
     else:
         print('this setup would LOST ~%s more tests' % diff)
 
-    return { 'best_case': best_case, 'worst_case': worst_case, 'average_case': average_case }
+    return { 
+        'batch_size': batch,
+        'test_executions': test_executions,
+        'positives': positives,
+        'negatives': negatives,
+        'best_case': best_case, 
+        'worst_case': worst_case, 
+        'average_case': average_case,
+        'total_tests_used': total_tests_used,
+        'tests_minus_average': test_executions - average_case,
+        'runs': runs,
+    }
 
-if __name__ == '__main__':
-    print('test_shortage.py running')
-    for b in range(batch - 3, batch + 3):
+
+def run():
+    if run_type == 'plot':
+        run_plot()
+    elif run_type == 'csv':
+        run_csv()
+    else:
+        print('error: run_type invalid.\t', run_type)
+ 
+
+def run_plot():
+    from matplotlib import pyplot as plt
+    import numpy
+    for b in range(batch - BATCH_RANGE, batch + BATCH_RANGE):
         if b > 0:
-            plot(plt, b, **compute(b))
+            plot(plt, **compute(b))
+        else:
+            print('b was too low:\t', b)
     plt.legend()
     plt.suptitle(str(args))
     plt.show()
+
+def run_csv():
+    import csv # https://docs.python.org/3/library/csv.html#csv.writer
+    with open(CSV_FILENAME, 'w', newline='') as csvfile:
+        # TODO centralize keywords
+        fieldnames = [
+            'batch_size',
+            'test_executions',
+            'positives',
+            'negatives',
+            'best_case', 
+            'worst_case', 
+            'average_case',
+            'total_tests_used',
+            'tests_minus_average',
+            'runs',
+        ]
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        writer.writeheader()
+        for b in range(batch - BATCH_RANGE, batch + BATCH_RANGE):
+            if b > 0:
+                writer.writerow(compute(b))
+            else:
+                print('b was too low:\t', b)
+    print(CSV_FILENAME + ' created.')
+
+if __name__ == '__main__':
+    print('test_shortage.py running')
+    run()
