@@ -7,10 +7,12 @@ from tools.parser import \
     positives, \
     batch, \
     runs, \
-    run_type
+    run_type, \
+    csv_full
 
 CSV_FILENAME = 'batch_tests.csv'
 BATCH_RANGE = 6
+POSITIVES_RANGE = 3
 
 
 def chunks(input, n):
@@ -41,16 +43,15 @@ def plot(graph, **kwargs):
     graph.plot(list(kwargs.keys()), list(kwargs.values()), label=label)
     return graph
 
-def compute(batch):
+def compute(batch, positives=positives):
     random.seed()
 
-    negatives = test_executions - positives
-
     # TODO convert print statements to logger format
+    
+    negatives = test_executions - positives
+    perc = 100 / (test_executions / positives)
     print('test_executions/tests:\t\t%s' % test_executions)
     print('positives:\t%s' % positives)
-    perc = 100 / (test_executions / positives)
-    perc_rounded = truncate(perc)
     print('%' + ' positive:\t%s' % perc + '%')
     print('batch:\t\t%s' % batch)
 
@@ -111,19 +112,36 @@ def compute(batch):
     else:
         print('this setup would LOST ~%s more tests' % diff)
 
-    return { 
+    return {
         'batch_size': batch,
         'test_executions': test_executions,
         'positives': positives,
         'negatives': negatives,
+        'percentage_positive': perc,
         'best_case': best_case, 
         'worst_case': worst_case, 
         'average_case': average_case,
         'total_tests_used': total_tests_used,
         'tests_minus_average': test_executions - average_case,
         'runs': runs,
+        'all_runs': all_runs,
     }
 
+def batch_size_of_one(positives=positives):
+    return {
+        'batch_size': 1,
+        'test_executions': test_executions,
+        'positives': positives,
+        'negatives': test_executions - positives,
+        'percentage_positive': 100 / (test_executions / positives),
+        'best_case': 100, 
+        'worst_case': 100, 
+        'average_case': 100,
+        'total_tests_used': 100,
+        'tests_minus_average': 0,
+        'runs': runs,
+        'all_runs': [100] * runs,
+    }
 
 def run():
     if run_type == 'plot':
@@ -152,23 +170,48 @@ def run_csv():
         # TODO centralize keywords
         fieldnames = [
             'batch_size',
+            'runs',
             'test_executions',
             'positives',
             'negatives',
-            'best_case', 
-            'worst_case', 
-            'average_case',
+            'percentage_positive',
             'total_tests_used',
-            'tests_minus_average',
-            'runs',
+            'best_case', 
+            'worst_case',
         ]
+        if csv_full:
+            fieldnames.append('individual_run')
+        else:
+            fieldnames.append('average_case')
+            fieldnames.append('tests_minus_average')
+
+        print('fieldnames', fieldnames)
+
+        def omit(d, keys):
+           return {x: d[x] for x in d if x not in keys}
+
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writeheader()
         for b in range(batch - BATCH_RANGE, batch + BATCH_RANGE):
-            if b > 0:
-                writer.writerow(compute(b))
+            
+            if b >= 1:
+                for posivs in range(positives - POSITIVES_RANGE, positives + POSITIVES_RANGE):
+                    
+                    if posivs > 1:
+                        computation = compute(b, positives=posivs) if b > 1 else batch_size_of_one(positives=posivs)
+                        if csv_full:
+                            all_runs = computation['all_runs']
+                            computation = omit(computation, ['average_case', 'tests_minus_average', 'all_runs'])
+                            for run in all_runs:
+                                computation['individual_run'] = run
+                                writer.writerow(computation)
+                        else:
+                            computation = omit(computation, ['all_runs'])
+                            writer.writerow(computation)
+                    else:
+                        print('posivs was too low (<=1):\t', posivs)
             else:
-                print('b was too low:\t', b)
+                print('b was too low (<1):\t', b)
     print(CSV_FILENAME + ' created.')
 
 if __name__ == '__main__':
