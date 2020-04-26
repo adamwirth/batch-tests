@@ -1,5 +1,6 @@
 from math import ceil
 import random
+import logging
 
 from tools.parser import \
     args, \
@@ -25,48 +26,44 @@ def chunks(input, n):
     return list(_chunks(input, n))
 
 
-# TODO what are better performance choices for here?
 def countPartitions(partition):
-    hasTrue = lambda lst: True if True in lst else False
-
     i = 0
     for p in partition:
-        if hasTrue(p):
+        if True if True in p else False:
             i += 1
+    logging.debug('countPartitions: %s', i)
     return i
 
 truncate = lambda v: ceil(v * 1000) / 1000
 
 def plot(graph, **kwargs):
-    print('plot', kwargs)
+    logging.debug('plot; %s', kwargs)
     label = 'Batches of size ' + str(kwargs.get('batch_size'))
     graph.plot(list(kwargs.keys()), list(kwargs.values()), label=label)
     return graph
 
 def compute(batch, positives=positives):
     random.seed()
-
-    # TODO convert print statements to logger format
     
     negatives = test_executions - positives
     perc = 100 / (test_executions / positives)
-    print('test_executions/tests:\t\t%s' % test_executions)
-    print('positives:\t%s' % positives)
-    print('%' + ' positive:\t%s' % perc + '%')
-    print('batch:\t\t%s' % batch)
+    logging.debug('test_executions/tests:\t%s', test_executions)
+    logging.debug('positives:\t%s', positives)
+    logging.debug('percentage that are positive:\t%s', perc)
+    logging.debug('batch:\t\t%s', batch)
 
     top_level = ceil(test_executions / batch)
-    print('top_level:\t%s' % top_level)
+    logging.debug('top_level:\t%s', top_level)
 
-    print('-----')
+    logging.debug('-----')
 
     best_case = top_level + (ceil(positives / batch) * batch)
-    print('best_case:\t%s' % best_case)
+    logging.debug('best_case:\t%s', best_case)
 
     worst_case = top_level + ((positives if positives < top_level else top_level) * batch)
-    print('worst_case:\t%s' % worst_case)
+    logging.debug('worst_case:\t%s', worst_case)
 
-    print('-----')
+    logging.debug('-----')
 
     # Time to monte carlo!
     tested = []
@@ -80,12 +77,14 @@ def compute(batch, positives=positives):
 
         partitioned = chunks(tested, batch)
 
+        logging.debug('partitioned; %s', partitioned)
+
         # this many partitions have at least one positive test
         count = countPartitions(partitioned)
 
         return count
 
-    print('Running %s scenarios...' % runs)
+    logging.debug('Running %s scenarios...', runs)
 
     def monteCarloes():
         for i in range(runs):
@@ -100,17 +99,17 @@ def compute(batch, positives=positives):
         return sum
 
     total_tests_used = summation(all_runs)
-    print('total_tests_used:\t', total_tests_used)
+    logging.debug('total_tests_used:\t', total_tests_used)
     average_run = total_tests_used / runs
-    print('average_run:\t%s' % average_run)
+    logging.debug('average_run:\t%s', average_run)
     average_case = top_level + average_run
-    print('average_case:\t%s' % average_case)
+    logging.debug('average_case:\t%s', average_case)
     assert average_case <= worst_case and average_case >= best_case, 'this should be impossible'
     diff = truncate(test_executions - average_case)
     if diff > 0:
-        print('this setup would SAVE ~%s extra tests' % diff)
+        logging.debug('this setup would SAVE ~%s extra tests', diff)
     else:
-        print('this setup would LOST ~%s more tests' % diff)
+        logging.debug('this setup would LOST ~%s more tests', diff)
 
     return {
         'batch_size': batch,
@@ -149,7 +148,7 @@ def run():
     elif run_type == 'csv':
         run_csv()
     else:
-        print('error: run_type invalid.\t', run_type)
+        logging.error('run_type invalid.\t%s', run_type)
  
 
 def run_plot():
@@ -159,7 +158,7 @@ def run_plot():
         if b > 0:
             plot(plt, **compute(b))
         else:
-            print('b was too low:\t', b)
+            logging.debug('batch value "b" was too low:\t%s', b)
     plt.legend()
     plt.suptitle(str(args))
     plt.show()
@@ -185,7 +184,7 @@ def run_csv():
             fieldnames.append('average_case')
             fieldnames.append('tests_minus_average')
 
-        print('fieldnames', fieldnames)
+        logging.debug('fieldnames:\t%s', fieldnames)
 
         def omit(d, keys):
            return {x: d[x] for x in d if x not in keys}
@@ -193,10 +192,8 @@ def run_csv():
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writeheader()
         for b in range(batch - BATCH_RANGE, batch + BATCH_RANGE):
-            
             if b >= 1:
                 for posivs in range(positives - POSITIVES_RANGE, positives + POSITIVES_RANGE):
-                    
                     if posivs > 1:
                         computation = compute(b, positives=posivs) if b > 1 else batch_size_of_one(positives=posivs)
                         if csv_full:
@@ -209,11 +206,11 @@ def run_csv():
                             computation = omit(computation, ['all_runs'])
                             writer.writerow(computation)
                     else:
-                        print('posivs was too low (<=1):\t', posivs)
+                        logging.debug('posivs value was too low (<=1):\t%s', posivs)
             else:
-                print('b was too low (<1):\t', b)
-    print(CSV_FILENAME + ' created.')
+                logging.debug('batch_size value "b" was too low (<1):\t%s', b)
+    logging.info('%s created.', CSV_FILENAME)
 
 if __name__ == '__main__':
-    print('test_shortage.py running')
+    logging.debug('run.py running')
     run()
